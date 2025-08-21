@@ -1,0 +1,360 @@
+<script>
+  const signUpButton = document.getElementById('signUp');
+  const signInButton = document.getElementById('signIn');
+  const container = document.getElementById('container');
+  const signupForm = document.getElementById('signupForm');
+  const loginForm = document.getElementById('loginForm');
+  const signupMessage = document.getElementById('signupMessage');
+  const loginMessage = document.getElementById('loginMessage');
+  const resendVerificationLink = document.getElementById('resendVerificationLink');
+
+  // Modals and related elements
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  const emailRequestModal = document.getElementById('emailRequestModal');
+  const otpEntryModal = document.getElementById('otpEntryModal');
+  const changePasswordModal = document.getElementById('changePasswordModal');
+  const forgotEmailInput = document.getElementById('forgotEmail');
+  const sendOtpButton = document.getElementById('sendOtpButton');
+  const forgotEmailMessage = document.getElementById('forgotEmailMessage');
+  const otpInput = document.getElementById('otpInput');
+  const verifyOtpButton = document.getElementById('verifyOtpButton');
+  const resendOtpButton = document.getElementById('resendOtpButton');
+  const otpTimerDisplay = document.getElementById('otpTimer');
+  const otpMessage = document.getElementById('otpMessage');
+  const newPasswordInput = document.getElementById('newPassword');
+  const confirmNewPasswordInput = document.getElementById('confirmNewPassword');
+  const resetPasswordButton = document.getElementById('resetPasswordButton');
+  const changePasswordMessage = document.getElementById('changePasswordMessage');
+  const closeButtons = document.querySelectorAll('.close-button');
+
+  let forgotPasswordEmail = ''; // To store the email for OTP/password reset
+  let otpCountdownInterval;
+
+  // --- UI Animation Handlers ---
+  signUpButton.addEventListener('click', () => {
+    container.classList.add("right-panel-active");
+    clearMessages();
+    clearFormFields();
+  });
+
+  signInButton.addEventListener('click', () => {
+    container.classList.remove("right-panel-active");
+    clearMessages();
+    clearFormFields();
+  });
+
+  // --- Form Submission Handlers ---
+
+  signupForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('signupName').value;
+    const title = document.getElementById('signupTitle').value;
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+
+    if (!name || !title || !email || !password) {
+      showMessage(signupMessage, 'error', 'Please fill all fields.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      showMessage(signupMessage, 'error', 'Please enter a valid email address.');
+      return;
+    }
+
+    showMessage(signupMessage, 'neutral', 'Registering...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (response.success) {
+          showMessage(signupMessage, 'success', response.message);
+          clearFormFields();
+          // container.classList.remove("right-panel-active"); // Switch to sign-in form
+        } else {
+          showMessage(signupMessage, 'error', response.message);
+        }
+      })
+      .withFailureHandler((error) => {
+        showMessage(signupMessage, 'error', 'An error occurred during registration.');
+        console.error(error);
+      })
+      .processSignup({ name, title, email, password });
+  });
+
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    if (!email || !password) {
+      showMessage(loginMessage, 'error', 'Please enter email and password.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      showMessage(loginMessage, 'error', 'Please enter a valid email address.');
+      return;
+    }
+
+    showMessage(loginMessage, 'neutral', 'Signing in...');
+    resendVerificationLink.style.display = 'none'; // Hide resend link initially
+
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (response.success) {
+          showMessage(loginMessage, 'success', response.message);
+          clearFormFields();
+          setTimeout(() => { window.location.href = response.redirectUrl; }, 1000); // Redirect after short delay
+        } else {
+          showMessage(loginMessage, 'error', response.message);
+          if (response.unverified) {
+            resendVerificationLink.style.display = 'block'; // Show resend link if unverified
+          }
+        }
+      })
+      .withFailureHandler((error) => {
+        showMessage(loginMessage, 'error', 'An error occurred during login.');
+        console.error(error);
+      })
+      .processLogin({ email, password });
+  });
+
+  // --- Forgot Password Flow Handlers ---
+
+  forgotPasswordLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showModal(emailRequestModal);
+    forgotEmailInput.value = '';
+    showMessage(forgotEmailMessage, 'neutral', '');
+  });
+
+  sendOtpButton.addEventListener('click', () => {
+    forgotPasswordEmail = forgotEmailInput.value.trim();
+    if (!isValidEmail(forgotPasswordEmail)) {
+      showMessage(forgotEmailMessage, 'error', 'Please enter a valid email address.');
+      return;
+    }
+
+    showMessage(forgotEmailMessage, 'neutral', 'Sending OTP...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (response.success) {
+          showMessage(forgotEmailMessage, 'success', response.message);
+          setTimeout(() => {
+            hideModal(emailRequestModal);
+            showModal(otpEntryModal);
+            startOtpTimer(10); // 10 minutes
+            otpInput.value = ''; // Clear OTP input
+            showMessage(otpMessage, 'neutral', ''); // Clear OTP message
+          }, 1000);
+        } else {
+          showMessage(forgotEmailMessage, 'error', response.message);
+        }
+      })
+      .withFailureHandler((error) => {
+        showMessage(forgotEmailMessage, 'error', 'Error sending OTP.');
+        console.error(error);
+      })
+      .sendPasswordResetOTP(forgotPasswordEmail);
+  });
+
+  verifyOtpButton.addEventListener('click', () => {
+    const otp = otpInput.value.trim();
+    if (otp.length !== 6 || !/^\d+$/.test(otp)) {
+      showMessage(otpMessage, 'error', 'Please enter a valid 6-digit OTP.');
+      return;
+    }
+
+    showMessage(otpMessage, 'neutral', 'Verifying OTP...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (response.success) {
+          showMessage(otpMessage, 'success', response.message);
+          clearInterval(otpCountdownInterval); // Stop timer
+          setTimeout(() => {
+            hideModal(otpEntryModal);
+            showModal(changePasswordModal);
+            newPasswordInput.value = '';
+            confirmNewPasswordInput.value = '';
+            showMessage(changePasswordMessage, 'neutral', '');
+          }, 1000);
+        } else {
+          showMessage(otpMessage, 'error', response.message);
+        }
+      })
+      .withFailureHandler((error) => {
+        showMessage(otpMessage, 'error', 'Error verifying OTP.');
+        console.error(error);
+      })
+      .verifyOTP(forgotPasswordEmail, otp);
+  });
+
+  resendOtpButton.addEventListener('click', () => {
+    if (!forgotPasswordEmail) {
+      showMessage(otpMessage, 'error', 'No email registered for password reset. Please go back and enter your email.');
+      return;
+    }
+    showMessage(otpMessage, 'neutral', 'Resending OTP...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (response.success) {
+          showMessage(otpMessage, 'success', response.message);
+          startOtpTimer(10); // Restart timer
+          otpInput.value = '';
+        } else {
+          showMessage(otpMessage, 'error', response.message);
+        }
+      })
+      .withFailureHandler((error) => {
+        showMessage(otpMessage, 'error', 'Error resending OTP.');
+        console.error(error);
+      })
+      .sendPasswordResetOTP(forgotPasswordEmail);
+  });
+
+  resetPasswordButton.addEventListener('click', () => {
+    const newPassword = newPasswordInput.value;
+    const confirmNewPassword = confirmNewPasswordInput.value;
+
+    if (!newPassword || !confirmNewPassword) {
+      showMessage(changePasswordMessage, 'error', 'Please enter and confirm your new password.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      showMessage(changePasswordMessage, 'error', 'Passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 6) { // Basic password length validation
+      showMessage(changePasswordMessage, 'error', 'Password must be at least 6 characters long.');
+      return;
+    }
+
+    showMessage(changePasswordMessage, 'neutral', 'Resetting password...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (response.success) {
+          showMessage(changePasswordMessage, 'success', response.message);
+          setTimeout(() => {
+            hideModal(changePasswordModal);
+            // Optionally, switch back to login form or clear fields
+            clearFormFields();
+            container.classList.remove("right-panel-active");
+          }, 1000);
+        } else {
+          showMessage(changePasswordMessage, 'error', response.message);
+        }
+      })
+      .withFailureHandler((error) => {
+        showMessage(changePasswordMessage, 'error', 'Error resetting password.');
+        console.error(error);
+      })
+      .resetPassword(forgotPasswordEmail, newPassword);
+  });
+
+  // --- Resend Verification Link Handler ---
+  resendVerificationLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    const emailToVerify = document.getElementById('loginEmail').value.trim();
+    if (!isValidEmail(emailToVerify)) {
+      showMessage(loginMessage, 'error', 'Please enter a valid email to resend verification.');
+      return;
+    }
+    showMessage(loginMessage, 'neutral', 'Resending verification email...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (response.success) {
+          showMessage(loginMessage, 'success', response.message);
+        } else {
+          showMessage(loginMessage, 'error', response.message);
+        }
+      })
+      .withFailureHandler((error) => {
+        showMessage(loginMessage, 'error', 'Error resending verification email.');
+        console.error(error);
+      })
+      .resendVerificationLink(emailToVerify);
+  });
+
+  // --- Helper Functions ---
+
+  function showMessage(element, type, message) {
+    element.textContent = message;
+    element.className = `message ${type}`;
+  }
+
+  function clearMessages() {
+    signupMessage.textContent = '';
+    signupMessage.className = 'message';
+    loginMessage.textContent = '';
+    loginMessage.className = 'message';
+  }
+
+  function clearFormFields() {
+    document.getElementById('signupName').value = '';
+    document.getElementById('signupTitle').value = '';
+    document.getElementById('signupEmail').value = '';
+    document.getElementById('signupPassword').value = '';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function showModal(modalElement) {
+    modalElement.style.display = 'flex'; // Use flex to center content
+  }
+
+  function hideModal(modalElement) {
+    modalElement.style.display = 'none';
+  }
+
+  closeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const modalId = button.dataset.modal;
+      hideModal(document.getElementById(modalId));
+      if (modalId === 'otpEntryModal') {
+        clearInterval(otpCountdownInterval); // Stop OTP timer if modal is closed
+      }
+    });
+  });
+
+  // Close modal if user clicks outside of it
+  window.addEventListener('click', (event) => {
+    if (event.target === emailRequestModal) {
+      hideModal(emailRequestModal);
+    }
+    if (event.target === otpEntryModal) {
+      hideModal(otpEntryModal);
+      clearInterval(otpCountdownInterval);
+    }
+    if (event.target === changePasswordModal) {
+      hideModal(changePasswordModal);
+    }
+  });
+
+  function startOtpTimer(minutes) {
+    clearInterval(otpCountdownInterval); // Clear any existing timer
+    let time = minutes * 60;
+    otpTimerDisplay.textContent = `OTP expires in ${formatTime(time)}`;
+    otpCountdownInterval = setInterval(() => {
+      time--;
+      otpTimerDisplay.textContent = `OTP expires in ${formatTime(time)}`;
+      if (time <= 0) {
+        clearInterval(otpCountdownInterval);
+        otpTimerDisplay.textContent = 'OTP has expired.';
+        showMessage(otpMessage, 'error', 'OTP expired. Please resend.');
+        otpInput.disabled = true; // Disable input if OTP expires
+        verifyOtpButton.disabled = true;
+      } else {
+        otpInput.disabled = false; // Enable input if OTP is active
+        verifyOtpButton.disabled = false;
+      }
+    }, 1000);
+  }
+
+  function formatTime(seconds) {
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  }
+
+</script>

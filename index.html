@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= HtmlService.createHtmlOutputFromFile('stylesheet').getContent(); ?>
+</head>
+<body>
+  <div class="container" id="container">
+    <div class="form-container sign-up-container">
+      <form id="signupForm">
+        <h1>Create Account</h1>
+        <!-- <div class="social-container">
+          <a href="#" class="social"><i class="fab fa-google"></i></a>
+          <a href="#" class="social"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" class="social"><i class="fab fa-github"></i></a>
+          <a href="#" class="social"><i class="fab fa-linkedin-in"></i></a>
+        </div> -->
+        <span>Use your email for registration</span>
+        <input type="text" placeholder="Name" id="signupName" required />
+        <input type="text" placeholder="Title" id="signupTitle" required />
+        <input type="email" placeholder="Email" id="signupEmail" required />
+        <input type="password" placeholder="Password" id="signupPassword" required />
+        <button type="submit">Sign Up</button>
+        <p id="signupMessage" class="message"></p>
+      </form>
+    </div>
+    <div class="form-container sign-in-container">
+      <form id="loginForm">
+        <h1>Sign In</h1>
+        <!-- <div class="social-container">
+          <a href="#" class="social"><i class="fab fa-google"></i></a>
+          <a href="#" class="social"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" class="social"><i class="fab fa-github"></i></a>
+          <a href="#" class="social"><i class="fab fa-linkedin-in"></i></a>
+        </div> -->
+        <span>Use your email and password</span>
+        <input type="email" placeholder="Email" id="loginEmail" required />
+        <input type="password" placeholder="Password" id="loginPassword" required />
+        <a href="#" id="forgotPasswordLink">Forgot Your Password?</a>
+        <button type="submit">Sign In</button>
+        <p id="loginMessage" class="message"></p>
+        <a href="#" id="resendVerificationLink" style="display:none; color: #888; font-size: 0.9em; margin-top: 5px;">Resend Verification Email</a>
+      </form>
+    </div>
+    <div class="overlay-container">
+      <div class="overlay">
+        <div class="overlay-panel overlay-left">
+          <h1>Welcome Back!</h1>
+          <p>Access your account and continue your journey.</p>
+          <button class="ghost" id="signIn">Sign In</button>
+        </div>
+        <div class="overlay-panel overlay-right">
+          <h1>Join Us!</h1>
+          <p>Register to unlock full access and exclusive features.</p>
+          <button class="ghost" id="signUp">Sign Up</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modals -->
+  <div id="emailRequestModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" data-modal="emailRequestModal">×</span>
+      <h2>Enter your registered email</h2>
+      <input type="email" placeholder="Email" id="forgotEmail" required />
+      <button id="sendOtpButton">Send OTP</button>
+      <p id="forgotEmailMessage" class="message"></p>
+    </div>
+  </div>
+
+  <div id="otpEntryModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" data-modal="otpEntryModal">×</span>
+      <h2>Enter OTP</h2>
+      <p id="otpMessageDisplay">We've sent a 6-digit code to your email address.</p>
+      <input type="text" placeholder="Enter 6-digit OTP" id="otpInput" required maxlength="6" pattern="\d{6}" />
+      <p id="otpTimer">OTP expires in 9:59</p>
+      <div class="modal-buttons">
+        <button id="verifyOtpButton">Verify OTP</button>
+        <button id="resendOtpButton">Resend OTP</button>
+      </div>
+      <p id="otpMessage" class="message"></p>
+    </div>
+  </div>
+
+  <div id="changePasswordModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" data-modal="changePasswordModal">×</span>
+      <h2>Change Password</h2>
+      <input type="password" placeholder="New Password" id="newPassword" required />
+      <input type="password" placeholder="Confirm New Password" id="confirmNewPassword" required />
+      <button id="resetPasswordButton">Reset Password</button>
+      <p id="changePasswordMessage" class="message"></p>
+    </div>
+  </div>
+
+  <?!= HtmlService.createHtmlOutputFromFile('javascript').getContent(); ?>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</body>
+</html>
